@@ -2,28 +2,68 @@
 
 Mix skins from **ArdysaModsTools** and **Dota2Mods V4** on the same Dota 2 installation.
 
-Currently configured to use Ardysa for all heroes **except**:
-- **Windranger**: Green Artemis skin (Dota2Mods) — full model + particle replacement
-- **Vengeful Spirit**: Flightless Fury armor + Banished Princess leggings (Dota2Mods) — item swap via script patch
+This folder contains **two approaches**:
+
+---
+
+## Approach 1: Ardysa Base + Dota2Mods Heroes
+
+**Use Case:** You want most heroes using Ardysa skins, but specific heroes from Dota2Mods.
+
+**Script:** `patch_ardysa_vpk.py`
+
+**Heroes patched:**
+- Windranger: Green Artemis (Dota2Mods)
+- Vengeful Spirit: Flightless Fury + Banished Princess (Dota2Mods)
+- All others: Ardysa
+
+**Requirements:**
+- Apply Ardysa mods first through ArdysaModsTools
+- Run `python patch_ardysa_vpk.py`
+- Restart Dota 2
+
+---
+
+## Approach 2: Dota2Mods Base + Ardysa Heroes
+
+**Use Case:** You want most heroes using Dota2Mods skins, but specific heroes from Ardysa.
+
+**Script:** `patch_dota2mods_vpk.py`
+
+**Heroes patched:**
+- Drow Ranger: Ardysa skin
+- Queen of Pain: Ardysa skin
+- All others: Dota2Mods
+
+**Requirements:**
+- Apply your desired mods through Dota2Mods (including Windranger, VS, etc.)
+- **Disable ArdysaModsTools** or rename/delete the `_ArdysaMods` folder
+- Run `python patch_dota2mods_vpk.py`
+- Restart Dota 2
+
+**Important:** The `_ArdysaMods` folder has higher priority than `mods`, so you must disable/remove it for this approach to work. You can rename it to `_ArdysaMods_disabled` to preserve it.
 
 ---
 
 ## Quick Start
 
-### Requirements
+### Common Requirements
 - Python 3.x
 - `pip install vpk`
-- Ardysa mods already applied to Dota 2
 
-### Apply the patch
+### Approach 1 Usage
+```bash
+python patch_ardysa_vpk.py          # Apply patch
+python patch_ardysa_vpk.py --undo   # Undo
 ```
-python patch_ardysa_vpk.py
-```
-Then restart Dota 2.
 
-### Undo (restore all original Ardysa skins)
-```
-python patch_ardysa_vpk.py --undo
+### Approach 2 Usage
+```bash
+# First, disable Ardysa:
+# Rename: game/_ArdysaMods -> game/_ArdysaMods_disabled
+
+python patch_dota2mods_vpk.py        # Apply patch
+python patch_dota2mods_vpk.py --undo # Undo
 ```
 
 ---
@@ -32,25 +72,17 @@ python patch_ardysa_vpk.py --undo
 
 ```
 multimods/
-  patch_ardysa_vpk.py               # Main script
+  patch_ardysa_vpk.py                # Approach 1 script
+  patch_dota2mods_vpk.py             # Approach 2 script
   README.md                          # This file
   backups/
-    green_artemis_windranger/        # 179 Green Artemis WR asset files
-      materials/
-      models/
-      particles/
-      resource/
-      soundevents/
-    vengeful_spirit_d2mods/          # VS mod data
-      item_replacements.json         # items_game.txt block replacements
-      models/heroes/vengeful/        # VS weapon model
-      scripts/                       # Reference scripts (items_game, portraits, precache)
+    green_artemis_windranger/        # WR skin from Dota2Mods
+    vengeful_spirit_d2mods/          # VS skin from Dota2Mods
+    ardysa_drow/                     # Drow skin from Ardysa
+    ardysa_queenofpain/              # QoP skin from Ardysa
   tools/
-    vpk.exe                          # Valve VPK tool (v1 format)
-    tier0.dll                        # Required DLLs for vpk.exe
-    vstdlib.dll
-    vstdlib_s.dll
-    filesystem_stdio.dll
+    vpk.exe                          # Valve VPK tool
+    *.dll                            # Required libraries
 ```
 
 ---
@@ -59,149 +91,157 @@ multimods/
 
 ### The Problem
 
-Ardysa and Dota2Mods both modify Dota 2 skins, but they use **different mechanisms**
-that conflict with each other:
+Ardysa and Dota2Mods use **different VPK locations** with different priorities:
 
-- **Dota2Mods V4** writes a VPK to `game/mods/pak01_dir.vpk` (~60 MB)
-- **ArdysaModsTools** writes a VPK to `game/_ArdysaMods/pak01_dir.vpk` (~858 MB)
+- **Dota2Mods V4** writes to `game/mods/pak01_dir.vpk` (~60 MB)
+- **ArdysaModsTools** writes to `game/_ArdysaMods/pak01_dir.vpk` (~858 MB)
 
-The game loads `_ArdysaMods` with **higher priority** than `mods`, so Ardysa's skin
-always wins for any hero that both tools modify. You cannot simply overlay one on
-top of the other.
+The game loads `_ArdysaMods` with **higher priority** than `mods`, so Ardysa always
+wins when both are active. You can't simply overlay one on top of the other.
 
-### What Doesn't Work (approaches tried and failed)
+### What Doesn't Work
 
-1. **Loose files in `game/mods/`**: In Source 2, within the same search path, VPK
-   entries take priority over loose files. Placing Windranger files as loose files
-   alongside a VPK does NOT override the VPK contents.
+1. **Loose files**: VPK entries override loose files within the same search path
+2. **Patching the lower-priority VPK**: `_ArdysaMods` always overrides `mods`
+3. **Python VPK library for rebuilding**: Creates v2 format, Dota 2 expects v1
+4. **Removing files without replacement**: Causes broken/missing assets
 
-2. **Patching `game/mods/pak01_dir.vpk`**: Even with a correctly patched VPK in the
-   `mods` directory, Ardysa's `_ArdysaMods` directory loads at higher priority and
-   overrides everything.
+### The Solution
 
-3. **Rebuilding with Python `vpk` library**: The Python `vpk` library creates VPK
-   **v2** format files, but Ardysa and Dota2Mods use VPK **v1** format. Dota 2 did
-   not correctly load the v2 VPK as a replacement.
+Both scripts work by **extracting, modifying, and rebuilding** the target VPK:
 
-4. **Just removing hero files from Ardysa**: Removing hero entries from
-   `_ArdysaMods/pak01_dir.vpk` without adding replacements causes a broken/default
-   appearance, since some files (like `windrunner.vmdl_c`, the base model)
-   only exist in Ardysa's VPK.
+**Approach 1** (Ardysa base):
+1. Extract `_ArdysaMods/pak01_dir.vpk`
+2. Remove selected heroes' Ardysa files
+3. Add Dota2Mods replacements
+4. Rebuild with `vpk.exe` (v1 format)
 
-### The Solution That Works
+**Approach 2** (Dota2Mods base):
+1. Extract `mods/pak01_dir.vpk`
+2. Remove selected heroes' Dota2Mods files (if any)
+3. Add Ardysa replacements
+4. Rebuild with `vpk.exe` (v1 format)
+5. **Disable `_ArdysaMods`** so the patched `mods` VPK takes effect
 
-The script patches Ardysa's own VPK (`_ArdysaMods/pak01_dir.vpk`) directly:
+### Two Types of Mods
 
-1. **Extract** all 5000+ files from Ardysa's VPK using the Python `vpk` library
-2. **Remove** all Ardysa Windranger files (82 files — includes custom paths like
-   `kisilev_ind/`, `zinogre/`, and standard `models/heroes/windrunner/`)
-3. **Remove** all Ardysa Vengeful Spirit custom files (72 files — `kisilev_ind/`
-   custom arcana models)
-4. **Add** all 179 Green Artemis Windranger files from the backup
-5. **Add** VS weapon model from Dota2Mods
-6. **Patch** `items_game.txt` to swap VS item definitions:
-   - Upper Armor: Ardysa arcana -> Flightless Fury (`flightless_fury_shoulder`)
-   - Legs: Ardysa arcana -> Banished Princess (`banished_princess_legs`)
-7. **Rebuild** the VPK using Valve's own `vpk.exe` tool to ensure **v1 format**
-   compatibility
+**File Replacement Mods** (WR, Drow, QoP):
+Custom model/material/particle files that fully replace the hero's assets.
 
-This approach works because:
-- We modify the highest-priority VPK directly, so no other file can override it
-- We use `vpk.exe` (not the Python library) to rebuild, ensuring correct v1 format
-- We replace rather than just remove, so no files are "missing" causing broken skins
+**Script Patch Mods** (VS):
+Changes to `items_game.txt` that swap equipment slots to different cosmetic items.
+Only needs the script changes + any custom models (like VS weapon).
 
-### Two Types of Mod Replacement
+### Ardysa's Custom Paths
 
-The script handles two different types of Dota2Mods skins:
-
-**Type 1: File Replacement (Windranger)**
-The mod provides entirely custom model/material/particle files that replace the
-originals. The script removes Ardysa's files and adds the Dota2Mods files directly.
-
-**Type 2: Item Script Swap (Vengeful Spirit)**
-The mod works by changing `items_game.txt` to point the hero's equipment slots to
-different existing in-game cosmetic items. Only a weapon model file is custom; the
-rest (armor, leggings) are standard Dota 2 items referenced by name. The script
-patches the item definitions inside the VPK.
-
-### Key Discovery: Ardysa's Custom Paths
-
-Ardysa doesn't just replace standard game files. It uses custom asset paths:
-
+Ardysa uses custom asset paths like:
 ```
-kisilev_ind/models/windrunner/...     # Custom model variants
-kisilev_ind/materials/windrunner/...  # Custom materials
-kisilev_ind/particles/windrunner/...  # Custom particles
-models/heroes/windrunner/windrunner.vmdl_c  # Base model override
+kisilev_ind/models/drow/...
+kisilev_ind/materials/drow/...
+kisilev_ind/particles/drow/...
 ```
 
-These custom paths are referenced by modified item definition files inside the VPK
-(`scripts/items/items_game.txt`). Simply replacing the standard
-`models/heroes/windrunner/` files is not enough — you must also remove these custom
-paths, otherwise Ardysa's skin still loads through the custom references.
+These are referenced by modified `items_game.txt` entries. You must remove both the
+custom paths AND the standard paths to fully replace an Ardysa hero.
 
 ---
 
-## Workflow After Applying Ardysa Updates
+## Switching Between Approaches
 
-Every time you re-apply Ardysa mods (e.g., after an Ardysa update), the
-`_ArdysaMods/pak01_dir.vpk` gets overwritten. You need to re-run the patch:
+To switch from Approach 1 to Approach 2:
 
-1. Apply Ardysa mods normally through ArdysaModsTools
-2. Run `python patch_ardysa_vpk.py`
+1. Run `python patch_ardysa_vpk.py --undo` (restore original Ardysa)
+2. Rename `game/_ArdysaMods` to `game/_ArdysaMods_disabled`
+3. Apply your Dota2Mods setup
+4. Run `python patch_dota2mods_vpk.py`
+5. Restart Dota 2
+
+To switch back:
+
+1. Run `python patch_dota2mods_vpk.py --undo` (restore original Dota2Mods)
+2. Rename `game/_ArdysaMods_disabled` back to `game/_ArdysaMods`
+3. Re-apply Ardysa if needed
+4. Run `python patch_ardysa_vpk.py`
+5. Restart Dota 2
+
+---
+
+## Workflow After Updates
+
+### Approach 1 (Ardysa base)
+After re-applying Ardysa mods:
+1. Run `python patch_ardysa_vpk.py`
+2. Restart Dota 2
+
+### Approach 2 (Dota2Mods base)
+After re-applying Dota2Mods:
+1. Ensure `_ArdysaMods` is still disabled
+2. Run `python patch_dota2mods_vpk.py`
 3. Restart Dota 2
 
-The backup of the original Ardysa VPK is stored at:
-`game/_ArdysaMods/pak01_dir_backup.vpk`
-
-If you want to update the backup (e.g., after an Ardysa update with new content),
-delete the backup file first, then run the patch script — it will create a fresh
-backup before patching.
-
 ---
 
-## Adapting for Other Heroes
+## Adding More Heroes
 
-### File Replacement Mods (like Windranger)
+### To Approach 1 (add Dota2Mods heroes to Ardysa base)
 
-For mods that provide custom model/material files:
-
-1. **Disable Ardysa** and apply the mod through Dota2Mods
-2. **Capture the files** from the working VPK:
+1. Disable Ardysa and apply the hero through Dota2Mods
+2. Extract the hero's files:
    ```python
-   import vpk, os, shutil
+   import vpk, os
    pak = vpk.open(r"C:\...\game\mods\pak01_dir.vpk")
-   hero = "hero_keyword"  # e.g. "phantom_assassin", "drow"
+   hero = "hero_keyword"
    for f in pak:
        if hero in f.lower():
-           path = os.path.join("backups", "mod_name_hero", f)
+           path = os.path.join("backups", f"d2mods_{hero}", f)
            os.makedirs(os.path.dirname(path), exist_ok=True)
            with open(path, "wb") as out:
                out.write(pak.get_file(f).read())
    ```
-3. **Update the script**: Add the hero's keywords to the filtering logic
+3. Update `patch_ardysa_vpk.py`: add hero to keywords and backup paths
 
-### Item Swap Mods (like Vengeful Spirit)
+### To Approach 2 (add Ardysa heroes to Dota2Mods base)
 
-For mods that swap cosmetic items via script changes:
-
-1. **Apply the mod** through Dota2Mods and check the diff between `base.txt` and
-   `replaced.txt` in `Dota2Mods/resources/vpk/scripts/`
-2. **Identify the item blocks** that changed in `items_game.txt`
-3. **Save the replacement blocks** to `item_replacements.json`
-4. **Update `patch_items_game()`** in the script to handle the new replacements
+1. Re-enable Ardysa temporarily to capture files:
+   ```python
+   import vpk, os
+   pak = vpk.open(r"C:\...\game\_ArdysaMods\pak01_dir.vpk")
+   hero = "hero_keyword"
+   for f in pak:
+       if hero in f.lower():
+           path = os.path.join("backups", f"ardysa_{hero}", f)
+           os.makedirs(os.path.dirname(path), exist_ok=True)
+           with open(path, "wb") as out:
+               out.write(pak.get_file(f).read())
+   ```
+2. Update `patch_dota2mods_vpk.py`: add hero to keywords and backup paths
+3. Disable Ardysa again
 
 ---
 
 ## Paths Reference
 
-| Item | Default Path |
-|------|-------------|
+| Item | Path |
+|------|------|
 | Dota 2 install | `C:\Program Files (x86)\Steam\steamapps\common\dota 2 beta` |
 | Ardysa VPK | `game\_ArdysaMods\pak01_dir.vpk` |
 | Dota2Mods VPK | `game\mods\pak01_dir.vpk` |
 | Ardysa config | `%APPDATA%\ArdysaModsTools\config.json` |
-| Ardysa cache | `%LOCALAPPDATA%\ArdysaModsTools\AssetCache\` |
 | Dota2Mods install | `%LOCALAPPDATA%\Programs\Dota2Mods\` |
-| Dota2Mods downloads | `%LOCALAPPDATA%\Programs\Dota2Mods\resources\downloads\files\` |
 | Game search paths | `game\dota\gameinfo.gi` (loads `_ArdysaMods` > `mods` > `dota`) |
+
+---
+
+## Troubleshooting
+
+**Q: Ardysa still overrides everything in Approach 2**
+A: Make sure `_ArdysaMods` folder is renamed/deleted. The game loads it first.
+
+**Q: Getting "VPK not found" error**
+A: Run the appropriate mod manager first to create the VPK file.
+
+**Q: Changes not showing in-game**
+A: Fully restart Dota 2 (close and reopen, not just restart match).
+
+**Q: Want to use both approaches at once?**
+A: Not possible. Choose one base (Ardysa or Dota2Mods) and patch from there.
