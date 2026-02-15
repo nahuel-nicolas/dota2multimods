@@ -1,8 +1,10 @@
 # Dota 2 Multimods: Ardysa + Dota2Mods Coexistence
 
 Mix skins from **ArdysaModsTools** and **Dota2Mods V4** on the same Dota 2 installation.
-Currently configured to use Ardysa for all heroes except **Windranger**, which uses
-the **Green Artemis** skin from Dota2Mods.
+
+Currently configured to use Ardysa for all heroes **except**:
+- **Windranger**: Green Artemis skin (Dota2Mods) — full model + particle replacement
+- **Vengeful Spirit**: Flightless Fury armor + Banished Princess leggings (Dota2Mods) — item swap via script patch
 
 ---
 
@@ -19,7 +21,7 @@ python patch_ardysa_vpk.py
 ```
 Then restart Dota 2.
 
-### Undo (restore original Ardysa skin for Windranger)
+### Undo (restore all original Ardysa skins)
 ```
 python patch_ardysa_vpk.py --undo
 ```
@@ -30,18 +32,22 @@ python patch_ardysa_vpk.py --undo
 
 ```
 multimods/
-  patch_ardysa_vpk.py        # Main script
-  README.md                   # This file
+  patch_ardysa_vpk.py               # Main script
+  README.md                          # This file
   backups/
-    green_artemis_windranger/ # 179 Green Artemis Windranger asset files
+    green_artemis_windranger/        # 179 Green Artemis WR asset files
       materials/
       models/
       particles/
       resource/
       soundevents/
+    vengeful_spirit_d2mods/          # VS mod data
+      item_replacements.json         # items_game.txt block replacements
+      models/heroes/vengeful/        # VS weapon model
+      scripts/                       # Reference scripts (items_game, portraits, precache)
   tools/
-    vpk.exe                   # Valve VPK tool (v1 format)
-    tier0.dll                 # Required DLLs for vpk.exe
+    vpk.exe                          # Valve VPK tool (v1 format)
+    tier0.dll                        # Required DLLs for vpk.exe
     vstdlib.dll
     vstdlib_s.dll
     filesystem_stdio.dll
@@ -77,9 +83,9 @@ top of the other.
    **v2** format files, but Ardysa and Dota2Mods use VPK **v1** format. Dota 2 did
    not correctly load the v2 VPK as a replacement.
 
-4. **Just removing Windranger files from Ardysa**: Removing Windranger entries from
+4. **Just removing hero files from Ardysa**: Removing hero entries from
    `_ArdysaMods/pak01_dir.vpk` without adding replacements causes a broken/default
-   Windranger appearance, since some files (like `windrunner.vmdl_c`, the base model)
+   appearance, since some files (like `windrunner.vmdl_c`, the base model)
    only exist in Ardysa's VPK.
 
 ### The Solution That Works
@@ -87,16 +93,36 @@ top of the other.
 The script patches Ardysa's own VPK (`_ArdysaMods/pak01_dir.vpk`) directly:
 
 1. **Extract** all 5000+ files from Ardysa's VPK using the Python `vpk` library
-2. **Remove** all 82 Ardysa Windranger files (includes custom paths like
+2. **Remove** all Ardysa Windranger files (82 files — includes custom paths like
    `kisilev_ind/`, `zinogre/`, and standard `models/heroes/windrunner/`)
-3. **Add** all 179 Green Artemis Windranger files from the backup
-4. **Rebuild** the VPK using Valve's own `vpk.exe` tool to ensure **v1 format**
+3. **Remove** all Ardysa Vengeful Spirit custom files (72 files — `kisilev_ind/`
+   custom arcana models)
+4. **Add** all 179 Green Artemis Windranger files from the backup
+5. **Add** VS weapon model from Dota2Mods
+6. **Patch** `items_game.txt` to swap VS item definitions:
+   - Upper Armor: Ardysa arcana -> Flightless Fury (`flightless_fury_shoulder`)
+   - Legs: Ardysa arcana -> Banished Princess (`banished_princess_legs`)
+7. **Rebuild** the VPK using Valve's own `vpk.exe` tool to ensure **v1 format**
    compatibility
 
 This approach works because:
 - We modify the highest-priority VPK directly, so no other file can override it
 - We use `vpk.exe` (not the Python library) to rebuild, ensuring correct v1 format
 - We replace rather than just remove, so no files are "missing" causing broken skins
+
+### Two Types of Mod Replacement
+
+The script handles two different types of Dota2Mods skins:
+
+**Type 1: File Replacement (Windranger)**
+The mod provides entirely custom model/material/particle files that replace the
+originals. The script removes Ardysa's files and adds the Dota2Mods files directly.
+
+**Type 2: Item Script Swap (Vengeful Spirit)**
+The mod works by changing `items_game.txt` to point the hero's equipment slots to
+different existing in-game cosmetic items. Only a weapon model file is custom; the
+rest (armor, leggings) are standard Dota 2 items referenced by name. The script
+patches the item definitions inside the VPK.
 
 ### Key Discovery: Ardysa's Custom Paths
 
@@ -110,9 +136,9 @@ models/heroes/windrunner/windrunner.vmdl_c  # Base model override
 ```
 
 These custom paths are referenced by modified item definition files inside the VPK
-(`resource/` folder). Simply replacing the standard `models/heroes/windrunner/` files
-is not enough — you must also remove these custom paths, otherwise Ardysa's skin
-still loads through the custom references.
+(`scripts/items/items_game.txt`). Simply replacing the standard
+`models/heroes/windrunner/` files is not enough — you must also remove these custom
+paths, otherwise Ardysa's skin still loads through the custom references.
 
 ---
 
@@ -136,25 +162,34 @@ backup before patching.
 
 ## Adapting for Other Heroes
 
-To replace a different hero's skin (not Windranger), you need to:
+### File Replacement Mods (like Windranger)
 
-1. **Identify the hero's keywords**: Find the internal name used in file paths
-   (e.g., `windrunner` for Windranger, `phantom_assassin` for PA, `drow` for Drow
-   Ranger)
+For mods that provide custom model/material files:
 
-2. **Capture the desired skin files**: Apply the skin you want through Dota2Mods
-   (with Ardysa disabled), then extract the hero's files from the working VPK:
+1. **Disable Ardysa** and apply the mod through Dota2Mods
+2. **Capture the files** from the working VPK:
    ```python
-   import vpk, os
-   pak = vpk.open(r"path\to\working\pak01_dir.vpk")
+   import vpk, os, shutil
+   pak = vpk.open(r"C:\...\game\mods\pak01_dir.vpk")
+   hero = "hero_keyword"  # e.g. "phantom_assassin", "drow"
    for f in pak:
-       if "hero_keyword" in f.lower():
-           # save to backups/skin_name_hero/
+       if hero in f.lower():
+           path = os.path.join("backups", "mod_name_hero", f)
+           os.makedirs(os.path.dirname(path), exist_ok=True)
+           with open(path, "wb") as out:
+               out.write(pak.get_file(f).read())
    ```
+3. **Update the script**: Add the hero's keywords to the filtering logic
 
-3. **Update the script**: Add the new hero's keywords to the `KEYWORDS` list and
-   point `WR_BACKUP` to the new backup directory (or modify the script to support
-   multiple hero replacements).
+### Item Swap Mods (like Vengeful Spirit)
+
+For mods that swap cosmetic items via script changes:
+
+1. **Apply the mod** through Dota2Mods and check the diff between `base.txt` and
+   `replaced.txt` in `Dota2Mods/resources/vpk/scripts/`
+2. **Identify the item blocks** that changed in `items_game.txt`
+3. **Save the replacement blocks** to `item_replacements.json`
+4. **Update `patch_items_game()`** in the script to handle the new replacements
 
 ---
 
