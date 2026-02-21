@@ -1,6 +1,6 @@
 # Dota 2 Multimods: Ardysa + Dota2Mods Coexistence
 
-This code aims to allow you to combine skin mods from two different mods providers **Dota2Mods V4** (dota2mods.com) and **ArdysaModsTools* (ardysamods.my.id).
+This code aims to allow you to combine skin mods from two different mods providers **Dota2Mods V4** (dota2mods.com) and **ArdysaModsTools** (ardysamods.my.id).
 
 This Project was built using Claude Code. You may want to perform the backups using Claude Code too.
 
