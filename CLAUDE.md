@@ -425,7 +425,7 @@ the items_game.txt from the new VPK and update `item_replacements.json`.
 
 ---
 
-## Backups Contents
+## Backups Contents (Example)
 
 | Folder | Source | Files | Size |
 |--------|--------|-------|------|

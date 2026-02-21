@@ -1,6 +1,8 @@
 # Dota 2 Multimods: Ardysa + Dota2Mods Coexistence
 
-Mix skins from **ArdysaModsTools** and **Dota2Mods V4** on the same Dota 2 installation.
+This code aims to allow you to combine skin mods from two different mods providers **Dota2Mods V4** (dota2mods.com) and **ArdysaModsTools* (ardysamods.my.id).
+
+This Project was built using Claude Code. You may want to perform the backups using Claude Code too.
 
 This folder contains **two approaches**:
 
@@ -12,7 +14,7 @@ This folder contains **two approaches**:
 
 **Script:** `patch_ardysa_vpk.py`
 
-**Heroes patched:**
+**Heroes patched (Example):**
 - Windranger: Green Artemis (Dota2Mods)
 - Vengeful Spirit: Flightless Fury + Banished Princess (Dota2Mods)
 - All others: Ardysa
@@ -30,7 +32,7 @@ This folder contains **two approaches**:
 
 **Script:** `patch_dota2mods_vpk.py`
 
-**Heroes patched:**
+**Heroes patched (Example):**
 - Drow Ranger: Ardysa skin
 - Queen of Pain: Ardysa skin
 - All others: Dota2Mods
@@ -75,7 +77,7 @@ multimods/
   patch_ardysa_vpk.py                # Approach 1 script
   patch_dota2mods_vpk.py             # Approach 2 script
   README.md                          # This file
-  backups/
+  backups/			     # Backup content is and example
     green_artemis_windranger/        # WR skin from Dota2Mods
     vengeful_spirit_d2mods/          # VS skin from Dota2Mods
     ardysa_drow/                     # Drow skin from Ardysa
